@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WolfStation: Paldea Homework</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Rajdhani:wght@500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pokeRed: '#EE1515',
+                        pokeBlue: '#3B4CCA',
+                        pokeYellow: '#FFCB05',
+                        glassBg: 'rgba(15, 23, 42, 0.85)'
+                    },
+                    fontFamily: {
+                        retro: ['VT323', 'monospace'],
+                        main: ['Rajdhani', 'sans-serif']
+                    },
+                    boxShadow: {
+                        'glow': '0 0 15px rgba(255, 203, 5, 0.6)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Mobile App Base */
+        body {
+            background-color: #020617; 
+            color: #f8fafc;
+            font-family: 'Rajdhani', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* Mobile Container Wrapper */
+        #app-container {
+            width: 100%;
+            max-width: 430px;
+            height: 100dvh;
+            background: linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Particles */
+        .particles {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+            background-image: radial-gradient(rgba(255,255,255,0.1) 2px, transparent 2px);
+            background-size: 40px 40px;
+            animation: moveClouds 60s linear infinite;
+        }
+        @keyframes moveClouds { from { background-position: 0 0; } to { background-position: 400px 400px; } }
+
+        /* Screens */
+        .screen {
+            display: none; flex-direction: column; flex: 1; z-index: 10;
+            padding: 1rem; overflow-y: auto; overflow-x: hidden;
+        }
+        .screen.active { display: flex; animation: slideInRight 0.4s ease-out forwards; }
+        
+        .screen::-webkit-scrollbar { display: none; }
+
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* UI Elements */
+        .glass-card {
+            background: var(--tw-colors-glassBg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .btn-mobile {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: white;
+            padding: 1rem;
+            transition: all 0.2s;
+            text-align: center;
+            width: 100%;
+        }
+        .btn-mobile:active { transform: scale(0.96); background: #334155; }
+        .btn-mobile.correct { background: #059669; border-color: #34d399; }
+        .btn-mobile.wrong { background: #e11d48; border-color: #fb7185; }
+        .btn-primary { background: var(--tw-colors-pokeBlue); border-color: #60a5fa; box-shadow: 0 4px 15px rgba(59, 76, 202, 0.4); text-transform: uppercase; font-family: 'VT323', monospace; font-size: 1.6rem;}
+        
+        .progress-bar { width: 100%; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin-bottom: 1rem; }
+        .progress-fill { height: 100%; background: #FFCB05; width: 0%; transition: width 0.4s ease; }
+
+        /* Mistake Finder */
+        .mistake-word {
+            cursor: pointer;
+            border-bottom: 2px dashed #94a3b8;
+            padding-bottom: 2px;
+            transition: all 0.2s;
+        }
+        .mistake-word:active { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .mistake-word.fixed { color: #34d399; border-bottom: 2px solid #34d399; pointer-events: none; }
+
+        /* Battle Scene */
+        .battle-arena {
+            width: 100%; height: 220px;
+            background: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/environments/grass/day.png') center bottom / cover no-repeat;
+            background-color: #2d452b; background-blend-mode: overlay;
+            border: 4px solid #334155; border-radius: 12px;
+            position: relative; overflow: hidden; image-rendering: pixelated;
+            margin-bottom: 1rem;
+        }
+        .b-sprite { position: absolute; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.6)); object-fit: contain; }
+        .b-enemy { width: 100px; height: 100px; top: 10%; right: 10%; animation: float 3s ease-in-out infinite; }
+        .b-player { width: 140px; height: 140px; bottom: -10px; left: -10px; transform: scaleX(-1); }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        
+        .b-hud { background: rgba(15, 23, 42, 0.9); border: 2px solid #475569; padding: 4px 8px; border-radius: 6px; position: absolute; }
+        .hud-e { top: 10px; left: 10px; width: 130px; }
+        .hud-p { bottom: 10px; right: 10px; width: 140px; }
+        .hp-bg { width: 100%; height: 6px; background: #334155; border-radius: 3px; margin-top: 4px; }
+        .hp-fill { width: 100%; height: 100%; background: #10b981; border-radius: 3px; transition: width 0.3s; }
+
+        /* Animations */
+        .anim-tackle { animation: tackle 0.3s ease; }
+        @keyframes tackle { 0%, 100% { transform: translate(0, 0) scaleX(-1); } 50% { transform: translate(20px, -20px) scaleX(-1); } }
+        .anim-hit { animation: flashRed 0.4s 2; }
+        @keyframes flashRed { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5); } }
+        .anim-shake { animation: shakeScreen 0.4s ease; }
+        @keyframes shakeScreen { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div class="particles"></div>
+
+        <!-- TOP HUD -->
+        <div id="top-hud" class="w-full h-16 bg-[#0f172a]/90 border-b border-slate-700 flex items-center justify-between px-4 z-50 hidden">
+            <div class="flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-600">
+                <i id="hp-1" class="fas fa-heart text-pokeRed text-lg transition-colors duration-300"></i>
+                <i id="hp-2" class="fas fa-heart text-pokeRed text-lg transition-colors duration-300"></i>
+                <i id="hp-3" class="fas fa-heart text-pokeRed text-lg transition-colors duration-300"></i>
+                <i id="hp-4" class="fas fa-heart text-pokeRed text-lg transition-colors duration-300"></i>
+                <i id="hp-5" class="fas fa-heart text-pokeRed text-lg transition-colors duration-300"></i>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="score-display" class="font-retro text-2xl text-pokeYellow tracking-wider transition-transform duration-200">0 XP</span>
+                <img id="hud-icon" src="" class="w-10 h-10 object-contain hidden" alt="icon">
+            </div>
+        </div>
+
+        <!-- SCREEN: COVER -->
+        <div id="screen-cover" class="screen active justify-center items-center">
+            <div class="glass-card text-center w-full mt-10">
+                <h3 class="font-retro text-xl text-pokeYellow mb-4">WOLFSTATION ACADEMY</h3>
+                <h1 class="font-retro text-6xl text-white font-bold leading-none mb-2" style="-webkit-text-stroke: 2px #3B4CCA;">PALDEA</h1>
+                <h2 class="font-main text-3xl text-gray-300 font-black mb-8">HOMEWORK APP</h2>
+                
+                <div class="bg-slate-800 p-4 rounded-xl text-left mb-8 border border-slate-600">
+                    <p class="font-main text-lg text-gray-300 mb-2"><i class="fas fa-bullseye text-pokeRed w-6"></i> <strong>Mission:</strong> Complete 15 exercises.</p>
+                    <p class="font-main text-lg text-gray-300"><i class="fas fa-book text-pokeBlue w-6"></i> <strong>Grammar:</strong> Present Continuous.</p>
+                </div>
+                
+                <button onclick="goToStarter()" class="btn-mobile btn-primary animate-pulse">START <i class="fas fa-play ml-2"></i></button>
+            </div>
+        </div>
+
+        <!-- SCREEN: STARTER SELECTION -->
+        <div id="screen-starter" class="screen justify-center items-center">
+            <h2 class="font-retro text-3xl text-white mb-2">CHOOSE YOUR PARTNER</h2>
+            <p class="font-main text-gray-400 text-center mb-6">Select a Pokémon to help you with your homework!</p>
+            
+            <div class="grid grid-cols-2 gap-4 w-full mb-8">
+                <!-- Sprigatito -->
+                <div class="glass-card p-4 flex flex-col items-center cursor-pointer border-2 border-transparent active:scale-95" onclick="selectStarter('Sprigatito', 906)">
+                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/906.png" class="w-24 h-24 object-contain mb-2 filter drop-shadow-md">
+                    <h3 class="font-retro text-xl text-white">Sprigatito</h3>
+                    <span class="text-xs bg-green-600 text-white px-2 py-0.5 rounded font-bold">GRASS</span>
+                </div>
+                <!-- Fuecoco -->
+                <div class="glass-card p-4 flex flex-col items-center cursor-pointer border-2 border-transparent active:scale-95" onclick="selectStarter('Fuecoco', 909)">
+                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/909.png" class="w-24 h-24 object-contain mb-2 filter drop-shadow-md">
+                    <h3 class="font-retro text-xl text-white">Fuecoco</h3>
+                    <span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded font-bold">FIRE</span>
+                </div>
+                <!-- Quaxly -->
+                <div class="glass-card p-4 flex flex-col items-center cursor-pointer border-2 border-transparent active:scale-95" onclick="selectStarter('Quaxly', 912)">
+                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/912.png" class="w-24 h-24 object-contain mb-2 filter drop-shadow-md">
+                    <h3 class="font-retro text-xl text-white">Quaxly</h3>
+                    <span class="text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-bold">WATER</span>
+                </div>
+                <!-- Pikachu (Bonus) -->
+                <div class="glass-card p-4 flex flex-col items-center cursor-pointer border-2 border-transparent active:scale-95" onclick="selectStarter('Pikachu', 25)">
+                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" class="w-24 h-24 object-contain mb-2 filter drop-shadow-md">
+                    <h3 class="font-retro text-xl text-white">Pikachu</h3>
+                    <span class="text-xs bg-yellow-500 text-black px-2 py-0.5 rounded font-bold">ELECTRIC</span>
+                </div>
+            </div>
+            <button id="btn-confirm" onclick="startHomework()" class="btn-mobile btn-primary hidden opacity-0 transition-opacity">I CHOOSE YOU!</button>
+        </div>
+
+        <!-- SCREEN: DYNAMIC EXERCISE -->
+        <div id="screen-exercise" class="screen">
+            <!-- Header Progress -->
+            <div class="w-full mb-4 mt-2">
+                <div class="flex justify-between font-retro text-gray-400 mb-1 text-lg">
+                    <span>Exercise</span> <span id="ex-counter">1/15</span>
+                </div>
+                <div class="progress-bar"><div id="ex-progress" class="progress-fill"></div></div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="ex-content" class="w-full flex-1 flex flex-col"></div>
+
+            <!-- Controls Area -->
+            <div id="ex-controls" class="w-full pb-4 mt-auto"></div>
+            
+            <button id="ex-next-btn" onclick="nextExercise()" class="btn-mobile btn-primary hidden mt-4">NEXT <i class="fas fa-arrow-right"></i></button>
+        </div>
+
+        <!-- SCREEN: RESULTS -->
+        <div id="screen-results" class="screen justify-center items-center">
+            <div class="glass-card w-full text-center border-pokeYellow">
+                <i class="fas fa-trophy text-7xl text-pokeYellow mb-4 drop-shadow-[0_0_15px_rgba(255,203,5,0.8)]"></i>
+                <h2 class="font-retro text-4xl text-white mb-2">HOMEWORK COMPLETE</h2>
+                
+                <div class="bg-slate-900 rounded-xl p-6 my-6 border-2 border-slate-700">
+                    <p class="font-main text-gray-400 uppercase tracking-widest mb-1">FINAL EXP</p>
+                    <p id="result-exp" class="font-retro text-6xl text-white mb-4">0</p>
+                    <div class="h-px w-full bg-slate-700 mb-4"></div>
+                    <p class="font-main text-gray-400 uppercase tracking-widest mb-1">GRADE</p>
+                    <p id="result-grade" class="font-retro text-4xl text-green-400">A+</p>
+                </div>
+                
+                <p class="font-main text-lg text-gray-300 mb-6">Great job! Show this screen to your teacher.</p>
+                <button onclick="location.reload()" class="btn-mobile border-slate-600 bg-slate-800 text-gray-300 hover:bg-slate-700"><i class="fas fa-redo mr-2"></i> RESTART</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /* --- STATE --- */
+        let sName = "";
+        let sId = 0;
+        let hp = 5;
+        let xp = 0;
+        let currentEx = 0;
+        let isAnimating = false;
+
+        /* --- 15 EXERCISES DATA --- */
+        const exercisesData = [
+            // 1
+            { type: 'mcq', label: "VOCABULARY", text: "Look at the Pidgey. What is it doing?", img: 16, options: ["It is running.", "It is flying.", "It is swimming."], ans: 1 },
+            // 2
+            { type: 'mcq', label: "GRAMMAR", text: "Choose the correct verb to complete:", textLg: "I ____ walking in the tall grass.", options: ["is", "am", "are"], ans: 1 },
+            // 3
+            { type: 'battle', enemyId: 19, enemyName: "Rattata", eLv: 5, challenge: 'mistake', text: "Find the mistake to attack:", phraseHtml: "The Rattata <span class='mistake-word' onclick='checkMistake(this, true)' data-fix='is'>are</span> eating an <span class='mistake-word' onclick='checkMistake(this, false)'>apple</span>." },
+            // 4
+            { type: 'builder', label: "SENTENCE BUILDER", text: "Tap the words in the correct order:", target: ["My", "Pokémon", "is", "fighting", "now."] },
+            // 5
+            { type: 'mcq', label: "NEGATIVE FORM", text: "Make it negative:", textLg: "They ____ resting.", options: ["isn't", "am not", "aren't"], ans: 2 },
+            // 6
+            { type: 'battle', enemyId: 133, enemyName: "Eevee", eLv: 8, challenge: 'mcq', text: "Eevee is scared! What is it doing?", options: ["It is hiding.", "It are hide.", "It hiding."], ans: 0 },
+            // 7
+            { type: 'mcq', label: "READING", text: "Which sentence is correct?", options: ["We is traveling to Mesagoza.", "We are traveling to Mesagoza.", "We am traveling to Mesagoza."], ans: 1 },
+            // 8
+            { type: 'builder', label: "SENTENCE BUILDER", text: "Translate: 'Eles estão batalhando agora.'", target: ["They", "are", "battling", "now."] },
+            // 9
+            { type: 'battle', enemyId: 228, enemyName: "Houndour", eLv: 15, textHead: "TEAM STAR GRUNT", challenge: 'mistake', text: "Find the mistake to counter-attack:", phraseHtml: "The Grunt <span class='mistake-word' onclick='checkMistake(this, false)'>and</span> the dog <span class='mistake-word' onclick='checkMistake(this, true)' data-fix='are'>is</span> laughing." },
+            // 10
+            { type: 'mcq', label: "QUESTIONS", text: "Make a question:", textLg: "____ you training your Pokémon?", options: ["Is", "Am", "Are"], ans: 2 },
+            // 11
+            { type: 'mcq', label: "VOCABULARY", text: "What is Snorlax doing?", img: 143, options: ["It is dancing.", "It is sleeping.", "It is reading."], ans: 1 },
+            // 12
+            { type: 'battle', enemyId: 123, enemyName: "Scyther", eLv: 20, challenge: 'builder', text: "Build the attack sentence:", target: ["My", "partner", "is", "jumping", "high."] },
+            // 13
+            { type: 'mcq', label: "GRAMMAR", text: "Complete:", textLg: "What ____ Nemona doing?", options: ["is", "am", "are"], ans: 0 },
+            // 14
+            { type: 'battle', enemyId: 25, enemyName: "Pikachu", eLv: 35, textHead: "RIVAL NEMONA", challenge: 'mistake', text: "Find the mistake to win the Rival Battle:", phraseHtml: "Nemona <span class='mistake-word' onclick='checkMistake(this, true)' data-fix='is'>are</span> smiling <span class='mistake-word' onclick='checkMistake(this, false)'>at</span> you." },
+            // 15
+            { type: 'battle', enemyId: 1007, enemyName: "Koraidon", eLv: 99, textHead: "LEGENDARY ENCOUNTER", challenge: 'builder', text: "Build the sentence to defeat the Legendary!", target: ["I", "am", "battling", "the", "Koraidon."] }
+        ];
+
+        // --- CORE NAVIGATION ---
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+        
+        function goToStarter() {
+            showScreen('screen-starter');
+        }
+
+        // --- INIT ---
+        function selectStarter(name, id) {
+            sName = name;
+            sId = id;
+            
+            document.querySelectorAll('.glass-card').forEach(c => {
+                c.classList.remove('border-pokeYellow', 'bg-slate-800');
+                c.classList.add('border-transparent');
+            });
+            event.currentTarget.classList.remove('border-transparent');
+            event.currentTarget.classList.add('border-pokeYellow', 'bg-slate-800');
+            
+            const btn = document.getElementById('btn-confirm');
+            btn.classList.remove('hidden');
+            setTimeout(() => btn.classList.remove('opacity-0'), 10);
+            
+            document.getElementById('hud-icon').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+        }
+
+        function startHomework() {
+            document.getElementById('top-hud').classList.remove('hidden');
+            document.getElementById('top-hud').classList.add('flex');
+            document.getElementById('hud-icon').classList.remove('hidden');
+            updateHUD();
+            loadExercise();
+            showScreen('screen-exercise');
+        }
+
+        function updateHUD() {
+            document.getElementById('score-display').innerText = `${xp} XP`;
+            for(let i=1; i<=5; i++) {
+                const h = document.getElementById(`hp-${i}`);
+                if(i <= hp) h.classList.replace('text-slate-600', 'text-pokeRed');
+                else h.classList.replace('text-pokeRed', 'text-slate-600');
+            }
+        }
+
+        function damage() {
+            if(hp > 0) hp--;
+            updateHUD();
+            document.getElementById('app-container').classList.add('anim-shake');
+            setTimeout(() => document.getElementById('app-container').classList.remove('anim-shake'), 400);
+            if(hp === 0) {
+                setTimeout(() => {
+                    alert("You ran out of HP! Try again from the beginning.");
+                    location.reload();
+                }, 500);
+            }
+        }
+
+        function gainXP(amt) {
+            xp += amt;
+            updateHUD();
+        }
+
+        // --- EXERCISE RENDERER ---
+        function loadExercise() {
+            if(currentEx >= exercisesData.length) {
+                showResults();
+                return;
+            }
+
+            const ex = exercisesData[currentEx];
+            const content = document.getElementById('ex-content');
+            const controls = document.getElementById('ex-controls');
+            const nextBtn = document.getElementById('ex-next-btn');
+            
+            // Reset state
+            content.innerHTML = '';
+            controls.innerHTML = '';
+            nextBtn.classList.add('hidden');
+            document.getElementById('ex-counter').innerText = `${currentEx + 1}/15`;
+            document.getElementById('ex-progress').style.width = `${((currentEx + 1)/15)*100}%`;
+            isAnimating = false;
+
+            if (ex.type === 'mcq') renderMCQ(ex, content, controls);
+            else if (ex.type === 'builder') renderBuilder(ex, content, controls);
+            else if (ex.type === 'battle') renderBattle(ex, content, controls);
+        }
+
+        function nextExercise() {
+            if(isAnimating) return;
+            currentEx++;
+            loadExercise();
+        }
+
+        // --- TYPE: MCQ ---
+        function renderMCQ(ex, content, controls) {
+            let html = `<div class="glass-card mb-4 flex-1 flex flex-col items-center justify-center text-center">
+                <h3 class="font-retro text-pokeYellow mb-2 text-xl">${ex.label}</h3>`;
+            
+            if(ex.img) html += `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${ex.img}.png" class="w-32 h-32 object-contain mb-4 filter drop-shadow-md">`;
+            
+            html += `<p class="font-main text-xl text-gray-300">${ex.text}</p>`;
+            if(ex.textLg) html += `<p class="font-main font-bold text-3xl text-white mt-2">${ex.textLg}</p>`;
+            html += `</div>`;
+            content.innerHTML = html;
+
+            ex.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-mobile mb-3';
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    if(isAnimating) return;
+                    isAnimating = true;
+                    if(idx === ex.ans) {
+                        btn.classList.add('correct');
+                        gainXP(50);
+                        
+                        if(currentEx === exercisesData.length - 1) {
+                            document.getElementById('ex-next-btn').innerHTML = "FINISH <i class='fas fa-check'></i>";
+                        }
+                        
+                        document.getElementById('ex-next-btn').classList.remove('hidden');
+                        isAnimating = false;
+                    } else {
+                        btn.classList.add('wrong');
+                        damage();
+                        setTimeout(() => { btn.classList.remove('wrong'); isAnimating=false; }, 800);
+                    }
+                };
+                controls.appendChild(btn);
+            });
+        }
+
+        // --- TYPE: BUILDER ---
+        let builderCurrent = [];
+        let builderTarget = [];
+        function renderBuilder(ex, content, controls) {
+            builderTarget = ex.target;
+            builderCurrent = [];
+            
+            content.innerHTML = `
+                <div class="glass-card mb-4 text-center flex-1 flex flex-col">
+                    <h3 class="font-retro text-pokeYellow mb-2 text-xl">${ex.label || 'BUILDER'}</h3>
+                    <p class="font-main text-xl text-gray-300 mb-6">${ex.text}</p>
+                    <div id="build-zone" class="w-full min-h-[60px] bg-slate-800 rounded-lg border-2 border-dashed border-slate-600 p-3 flex flex-wrap gap-2 items-center justify-center font-main font-bold text-2xl text-pokeYellow shadow-inner mt-auto mb-auto"></div>
+                </div>`;
+
+            const shuffled = [...ex.target].sort(() => Math.random() - 0.5);
+            
+            const wordsContainer = document.createElement('div');
+            wordsContainer.className = "flex flex-wrap justify-center gap-2 mb-2";
+            
+            shuffled.forEach(word => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-mobile !w-auto !py-2 !px-4 !bg-slate-800';
+                btn.innerText = word;
+                btn.onclick = () => {
+                    if(isAnimating || btn.classList.contains('opacity-0')) return;
+                    btn.classList.add('opacity-0', 'pointer-events-none');
+                    builderCurrent.push(word);
+                    document.getElementById('build-zone').innerText = builderCurrent.join(" ");
+                    checkBuilder();
+                };
+                wordsContainer.appendChild(btn);
+            });
+            controls.appendChild(wordsContainer);
+            
+            const resetBtn = document.createElement('button');
+            resetBtn.className = 'font-retro text-xl text-slate-400 hover:text-white mt-4 w-full text-center';
+            resetBtn.innerText = "RESET WORDS";
+            resetBtn.onclick = () => {
+                builderCurrent = [];
+                document.getElementById('build-zone').innerText = "";
+                document.getElementById('build-zone').classList.remove('text-pokeRed', 'border-pokeRed');
+                wordsContainer.querySelectorAll('button').forEach(b => b.classList.remove('opacity-0', 'pointer-events-none'));
+            };
+            controls.appendChild(resetBtn);
+        }
+
+        function checkBuilder() {
+            let valid = true;
+            for(let i=0; i<builderCurrent.length; i++) {
+                if(builderCurrent[i] !== builderTarget[i]) valid = false;
+            }
+            
+            const zone = document.getElementById('build-zone');
+            if(!valid) {
+                isAnimating = true;
+                zone.classList.add('text-pokeRed', 'border-pokeRed');
+                damage();
+                setTimeout(() => {
+                    document.querySelector('#ex-controls button:last-child').click(); 
+                    zone.classList.remove('text-pokeRed', 'border-pokeRed');
+                    isAnimating = false;
+                }, 600);
+            } else if(builderCurrent.length === builderTarget.length) {
+                zone.classList.replace('text-pokeYellow', 'text-green-400');
+                zone.classList.replace('border-slate-600', 'border-green-500');
+                gainXP(80);
+                
+                if(exercisesData[currentEx].type === 'battle') {
+                    executeBattleWin();
+                } else {
+                    if(currentEx === exercisesData.length - 1) {
+                        document.getElementById('ex-next-btn').innerHTML = "FINISH <i class='fas fa-check'></i>";
+                    }
+                    document.getElementById('ex-next-btn').classList.remove('hidden');
+                }
+            }
+        }
+
+        // --- TYPE: BATTLE ---
+        function renderBattle(ex, content, controls) {
+            let html = `
+                <div class="w-full mb-2 flex justify-between items-end px-2">
+                    <span class="font-retro text-pokeRed text-xl">${ex.textHead || 'WILD ENCOUNTER'}</span>
+                </div>
+                <div class="battle-arena">
+                    <div class="b-hud hud-e">
+                        <p class="font-retro leading-none uppercase text-lg text-gray-300">${ex.enemyName} <span class="text-sm">Lv${ex.eLv}</span></p>
+                        <div class="hp-bg"><div id="e-hp" class="hp-fill"></div></div>
+                    </div>
+                    <img id="e-sprite" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${ex.enemyId}.png" class="b-sprite b-enemy" alt="Enemy">
+                    
+                    <div class="b-hud hud-p">
+                        <p class="font-retro leading-none uppercase text-lg text-pokeYellow">${sName} <span class="text-sm">Lv${ex.eLv}</span></p>
+                        <div class="hp-bg"><div id="p-hp" class="hp-fill"></div></div>
+                    </div>
+                    <div id="p-sprite-container" class="b-sprite b-player">
+                        <img id="p-sprite" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${sId}.png" class="w-full h-full object-contain" style="transform: scaleX(-1);" alt="Player">
+                    </div>
+                </div>
+            `;
+            content.innerHTML = html;
+
+            const panel = document.createElement('div');
+            panel.className = 'glass-card w-full flex-1 flex flex-col justify-center';
+            panel.innerHTML = `<p class="font-main text-lg text-gray-300 mb-3 text-center">${ex.text}</p>`;
+            
+            if(ex.challenge === 'mistake') {
+                panel.innerHTML += `<div class="bg-slate-800 p-4 rounded-xl border border-slate-600 text-center font-main text-2xl text-white shadow-inner">${ex.phraseHtml}</div>`;
+                controls.appendChild(panel);
+            } 
+            else if (ex.challenge === 'mcq') {
+                controls.appendChild(panel); 
+                ex.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-mobile mb-2 !py-2';
+                    btn.innerText = opt;
+                    btn.onclick = () => {
+                        if(isAnimating) return;
+                        if(idx === ex.ans) {
+                            btn.classList.add('correct');
+                            executeBattleWin();
+                        } else {
+                            btn.classList.add('wrong');
+                            executeBattleFail();
+                            setTimeout(() => btn.classList.remove('wrong'), 800);
+                        }
+                    };
+                    controls.appendChild(btn);
+                });
+            }
+            else if (ex.challenge === 'builder') {
+                renderBuilder(ex, panel, controls);
+                content.appendChild(panel); 
+            }
+        }
+
+        // --- BATTLE LOGIC ---
+        function checkMistake(el, isMistake) {
+            if(isAnimating || el.classList.contains('fixed')) return;
+            if(isMistake) {
+                el.innerText = el.getAttribute('data-fix');
+                el.classList.add('fixed');
+                executeBattleWin();
+            } else {
+                executeBattleFail();
+            }
+        }
+
+        function executeBattleWin() {
+            isAnimating = true;
+            const pSpriteContainer = document.getElementById('p-sprite-container');
+            const eSprite = document.getElementById('e-sprite');
+            const eHp = document.getElementById('e-hp');
+            
+            pSpriteContainer.classList.add('anim-tackle');
+            setTimeout(() => {
+                eSprite.classList.add('anim-hit');
+                eHp.style.width = '0%';
+                eHp.style.background = '#ef4444';
+                setTimeout(() => {
+                    eSprite.style.opacity = '0';
+                    gainXP(100);
+                    
+                    if(currentEx === exercisesData.length - 1) {
+                        document.getElementById('ex-next-btn').innerHTML = "FINISH <i class='fas fa-check'></i>";
+                    }
+                    
+                    document.getElementById('ex-next-btn').classList.remove('hidden');
+                    isAnimating = false;
+                }, 800);
+            }, 300);
+        }
+
+        function executeBattleFail() {
+            isAnimating = true;
+            const pSpriteContainer = document.getElementById('p-sprite-container');
+            const eSprite = document.getElementById('e-sprite');
+            
+            eSprite.classList.add('anim-tackle-enemy');
+            setTimeout(() => {
+                pSpriteContainer.classList.add('anim-hit');
+                damage();
+                setTimeout(() => {
+                    eSprite.classList.remove('anim-tackle-enemy');
+                    pSpriteContainer.classList.remove('anim-hit');
+                    isAnimating = false;
+                }, 800);
+            }, 300);
+        }
+
+        // --- RESULTS ---
+        function showResults() {
+            document.getElementById('top-hud').classList.add('hidden');
+            document.getElementById('top-hud').classList.remove('flex');
+            
+            document.getElementById('result-exp').innerText = xp;
+            let grade = "C";
+            let gColor = "text-yellow-400";
+            if(xp >= 1000) { grade = "A+"; gColor = "text-green-400"; }
+            else if(xp >= 700) { grade = "B"; gColor = "text-blue-400"; }
+            
+            const gEl = document.getElementById('result-grade');
+            gEl.innerText = grade;
+            gEl.className = `font-retro text-5xl ${gColor} drop-shadow-md`;
+            
+            showScreen('screen-results');
+        }
+
+    </script>
+</body>
+</html>
